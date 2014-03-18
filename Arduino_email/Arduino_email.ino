@@ -38,7 +38,6 @@ char datamotor[5];
 int lastpulse = 0;
 unsigned long last_pulse_time = 0;
 unsigned long current_time;
-unsigned long last_override_time;
 unsigned long report_count = 0;
 int report_interval = 1000;
 unsigned long timeout_millisecs = 5000;
@@ -46,7 +45,7 @@ const double MilliPerSecond = 1000;
 double Pulses_Per_Second;
 double Liter_per_minute;
 int Is_Power_On = 0;
-long override_time=0;
+long override_time= 60000;  // Start for 1 minute in override mode 
 int override_mode = 0;
 
 // Keep the last 10 seconds time stamps
@@ -111,14 +110,19 @@ void loop() {
 
   // check if the light should switch off
   if(current_time > (timeout_millisecs + last_pulse_time) ) {
-    //  if (current_time == 7000) {
-    digitalWrite(pin_output, LOW);
     Serial.print("FLOW ALERT. No flow for ");
     Serial.print(timeout_millisecs);
-    Serial.println(" milliseconds. Sending kill signal!");
-    if (Is_Power_On) {
-      Is_Power_On = 0;
-      smtp_service.send_email(email);  
+    Serial.print(" milliseconds. ");
+    if (override_mode) {
+      Serial.println("OVERRIDE MODE --- KILL SIGNAL SKIPPED)!");
+    }
+    else {
+      digitalWrite(pin_output, LOW);
+      Serial.println("SEND KILL SIGNAL");
+      if (Is_Power_On) {
+        Is_Power_On = 0;
+        smtp_service.send_email(email);  
+      }
     }
   }
 
@@ -148,19 +152,15 @@ void loop() {
     Serial.print("Liter per Minute: ");
     Serial.println(Liter_per_minute);
 
+    // countdown the time for override mode
     if(override_mode) {
-      if (last_override_time==0)
-        last_override_time=current_time;
-      override_time = override_time - current_time - last_override_time;
-      Serial.print("Last Time: ");
-      Serial.println(last_override_time);          
-      last_override_time=current_time;
-      Serial.print("Override_time left: ");
+      override_time = override_time - report_interval;
+      Serial.print("IN OVERRIDE MODE time left: ");
       Serial.println(override_time); 
+      Serial.println(" milliseconds "); 
       if (override_time<0) {
         override_mode=0;
         override_time=0;
-        last_override_time=0;
       }          
     }
 
@@ -294,19 +294,19 @@ void handle_http() {
 
 
       if (Is_Power_On)
-        client.print("The power is ON.");
+        client.print("The power is ON");
       else
-        client.print("the power is OFF.");
+        client.print("The power is OFF");
 
-      client.print("<br>Flow per second ");
+      client.print("<br>Flow per second: ");
       client.print(Pulses_Per_Second);
 
       client.print("<br>Liters per minute: ");
       client.print(Liter_per_minute);
 
       if (override_time>0) {
-        client.print("<br>Override mode, minutes left: ");
-        client.print(override_time);
+        client.print("<br>Override mode, seconds left: ");
+        client.print(override_time / 1000);
         client.print("<br><br>*** WARNING - NO FLOW MONITORING, OVERRIDE MODE WILL NOT DISABLE POWER ***");
       } 
       else 

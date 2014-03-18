@@ -18,4 +18,4 @@ Ethernet_mail.zip = Included special webmail .h files
 
 TO DO
 
-- Create override button via web interface
+- test webmail with raspi
