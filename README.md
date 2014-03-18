@@ -10,7 +10,9 @@ Hardware: 1x Arduino, 1x Arduino Ethernetboard, 1x a water flow meter, 1x 220v s
 Files: 
 
 Fritzing ethernet arduino board.fzz  = logical drawing 
+
 Arduino_email.ino = Arduino Code (thank you http://www.jayconsystems.com/tutorial/Ethernet_Send_Mail/)
+
 Ethernet_mail.zip = Included special webmail .h files
 
 

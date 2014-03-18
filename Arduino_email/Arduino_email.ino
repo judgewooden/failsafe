@@ -5,15 +5,17 @@
 int pin_input = 2;
 int pin_output = 4;
 
-unsigned long current_time;
-
 // Ethernet library configuration
-byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; //physical mac address
-byte ip[] = { 192, 168, 8, 11 }; // ip in lan
-byte gateway[] = { 192, 168, 8, 1 }; // internet access via router
+byte mac[] = { 
+  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; //physical mac address
+byte ip[] = { 
+  192, 168, 8, 11 }; // ip in lan
+byte gateway[] = { 
+  192, 168, 8, 1 }; // internet access via router
 
 // EMAIL processing variables
-byte smtp_server[] = { 192, 168, 8, 8}; // website.nl
+byte smtp_server[] = { 
+  192, 168, 8, 8}; // website.nl
 const unsigned int SMTP_PORT = 587;
 SmtpService smtp_service(smtp_server, SMTP_PORT);
 char incString[250];
@@ -35,6 +37,8 @@ char datamotor[5];
 // new code
 int lastpulse = 0;
 unsigned long last_pulse_time = 0;
+unsigned long current_time;
+unsigned long last_override_time;
 unsigned long report_count = 0;
 int report_interval = 1000;
 unsigned long timeout_millisecs = 5000;
@@ -42,7 +46,9 @@ const double MilliPerSecond = 1000;
 double Pulses_Per_Second;
 double Liter_per_minute;
 int Is_Power_On = 0;
-    
+long override_time=0;
+int override_mode = 0;
+
 // Keep the last 10 seconds time stamps
 const int numReadings = 20;
 unsigned long readings[numReadings];
@@ -62,22 +68,28 @@ void setup() {
   email.setDomain(domain);
   email.setLogin(login);
   email.setPassword(password);
-   
+
   email.setFrom("failsafe@douwedejong.com");
   email.setTo("douwe.jong@gmail.com");
   email.setCc("");
   email.setSubject("FLOW ALERT at JPH!");
   email.setBody("The power was switched off.");
-  
+
   digitalWrite(pin_output, HIGH);
   Is_Power_On = 1;
+
+  if(override_time>0)
+    override_mode=1;
+  else
+    override_mode=0;
+
 }
 
 void loop() {
 
   // remove jitter
   // delay(1);
-   
+
   // read the input pin:
   int buttonState = digitalRead(pin_input);
 
@@ -99,14 +111,14 @@ void loop() {
 
   // check if the light should switch off
   if(current_time > (timeout_millisecs + last_pulse_time) ) {
-//  if (current_time == 7000) {
+    //  if (current_time == 7000) {
     digitalWrite(pin_output, LOW);
     Serial.print("FLOW ALERT. No flow for ");
     Serial.print(timeout_millisecs);
     Serial.println(" milliseconds. Sending kill signal!");
     if (Is_Power_On) {
-        Is_Power_On = 0;
-        smtp_service.send_email(email);  
+      Is_Power_On = 0;
+      smtp_service.send_email(email);  
     }
   }
 
@@ -135,6 +147,22 @@ void loop() {
     Liter_per_minute = Pulses_Per_Second * 60 / 169;
     Serial.print("Liter per Minute: ");
     Serial.println(Liter_per_minute);
+
+    if(override_mode) {
+      if (last_override_time==0)
+        last_override_time=current_time;
+      override_time = override_time - current_time - last_override_time;
+      Serial.print("Last Time: ");
+      Serial.println(last_override_time);          
+      last_override_time=current_time;
+      Serial.print("Override_time left: ");
+      Serial.println(override_time); 
+      if (override_time<0) {
+        override_mode=0;
+        override_time=0;
+        last_override_time=0;
+      }          
+    }
 
     report_count++;
   }  
@@ -245,24 +273,26 @@ void handle_http() {
 
           Serial.println(data + i);
 
-          timeout_millisecs = atoi(data + i);
-          Serial.print("New milliseconds: ");
-          Serial.println(timeout_millisecs);
+          override_time = atoi(data + i);
+          if (override_time>60)
+            override_time = 60;
+
+          override_time *= 60000;
+          Serial.print("New override period: ");
+          Serial.println(override_time);
+
+          if(override_time>0)
+            override_mode=1;
+          else
+            override_mode=0;
         }
       }
 
       // HTML CODE
       client.println("<!DOCTYPE html>");
       client.println("<html>");
-/*
-      client.println("<form name=input method=post>Timeout in milliseconds: ");
-      client.println("<input type=\"text\" value=\"");
-      client.print(timeout_millisecs);
-      client.println("\" name=\"timeoutmilli\" />");
-      client.println("<input type=\"submit\" value=\"Update timeout\" />");                               
-      client.println("</form> <br /> ");
-*/
-      
+
+
       if (Is_Power_On)
         client.print("The power is ON.");
       else
@@ -270,10 +300,26 @@ void handle_http() {
 
       client.print("<br>Flow per second ");
       client.print(Pulses_Per_Second);
-      
+
       client.print("<br>Liters per minute: ");
       client.print(Liter_per_minute);
 
+      if (override_time>0) {
+        client.print("<br>Override mode, minutes left: ");
+        client.print(override_time);
+        client.print("<br><br>*** WARNING - NO FLOW MONITORING, OVERRIDE MODE WILL NOT DISABLE POWER ***");
+      } 
+      else 
+        client.print("<br>Monitoring mode");
+      client.print("<br> ");
+
+      client.println("<br><form name=input method=post>Set override minutes : ");
+      client.println("<input type=\"text\" value=\"");
+      //     client.print(override_time);
+      client.print("\" name=\"override_time\" />");
+      client.print(" (0=off) ");
+      client.println("<input type=\"submit\" value=\"Override\" />");                               
+      client.println("</form> <br /> ");
 
       client.println("</html>");        
       client.stop();
@@ -282,6 +328,7 @@ void handle_http() {
 
   reset_http_vals();
 }
+
 
 
 
