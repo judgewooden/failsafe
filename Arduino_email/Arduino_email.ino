@@ -45,7 +45,7 @@ const double MilliPerSecond = 1000;
 double Pulses_Per_Second;
 double Liter_per_minute;
 int Is_Power_On = 0;
-long override_time= 60000;  // Start for 1 minute in override mode 
+long override_time= 30000;  // Start for 30 seconds in override mode 
 int override_mode = 0;
 
 // Keep the last 10 seconds time stamps
@@ -290,6 +290,9 @@ void handle_http() {
 
       // HTML CODE
       client.println("<!DOCTYPE html>");
+      client.println("<meta http-equiv=\"refresh\" content=\"1");
+      client.print(report_interval/1000);
+      client.println("\">");
       client.println("<html>");
 
 
