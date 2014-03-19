@@ -290,11 +290,11 @@ void handle_http() {
 
       // HTML CODE
       client.println("<!DOCTYPE html>");
-      client.println("<meta http-equiv=\"refresh\" content=\"1");
-      client.print(report_interval/1000);
+      client.print("<meta http-equiv=\"refresh\" content=\"");
+      client.print(report_interval/1000*5);
       client.println("\">");
       client.println("<html>");
-
+      Serial.print(report_interval/1000*5);
 
       if (Is_Power_On)
         client.print("The power is ON");
