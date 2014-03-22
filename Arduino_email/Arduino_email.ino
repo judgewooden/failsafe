@@ -1,28 +1,14 @@
 #include "Ethernet.h"
 #include <SPI.h>
-#include "Smtp_Service.h"  // http://www.jayconsystems.com/tutorial/Ethernet_Send_Mail/
 
 int pin_input = 2;
 int pin_output = 4;
 
 // Ethernet library configuration
-byte mac[] = { 
-  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; //physical mac address
-byte ip[] = { 
-  192, 168, 8, 11 }; // ip in lan
-byte gateway[] = { 
-  192, 168, 8, 1 }; // internet access via router
-
-// EMAIL processing variables
-byte smtp_server[] = { 
-  192, 168, 8, 8}; // website.nl
-const unsigned int SMTP_PORT = 587;
-SmtpService smtp_service(smtp_server, SMTP_PORT);
-char incString[250];
-String domain = "website.com";
-String login = "username=";  // http://www.motobit.com/util/base64-decoder-encoder.asp
-String password = "password=";  // 
-Email email;
+byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; //physical mac address
+byte ip[] = { 192, 168, 8, 11 }; // ip in lan
+byte gateway[] = { 192, 168, 8, 1 }; // internet access via router
+byte smtp_server[] = { 192, 168, 8, 5}; // douwedejong.com
 
 // HMTL processing variables
 EthernetServer server(80); //server port
@@ -54,6 +40,7 @@ unsigned long readings[numReadings];
 int index = 0;
 
 void setup() {
+    
   pinMode(pin_input, INPUT);
   pinMode(pin_output, OUTPUT);
   //attachInterrupt(0, blink, FALLING);
@@ -64,15 +51,6 @@ void setup() {
 
   Ethernet.begin(mac, ip, gateway); //start Ethernet
   delay(1000);   
-  email.setDomain(domain);
-  email.setLogin(login);
-  email.setPassword(password);
-
-  email.setFrom("failsafe@douwedejong.com");
-  email.setTo("douwe.jong@gmail.com");
-  email.setCc("");
-  email.setSubject("FLOW ALERT at JPH!");
-  email.setBody("The power was switched off.");
 
   digitalWrite(pin_output, HIGH);
   Is_Power_On = 1;
@@ -108,7 +86,7 @@ void loop() {
 
   current_time = millis();
 
-  // check if the light should switch off
+  // check if the power should switch off
   if(current_time > (timeout_millisecs + last_pulse_time) ) {
     Serial.print("FLOW ALERT. No flow for ");
     Serial.print(timeout_millisecs);
@@ -121,11 +99,16 @@ void loop() {
       Serial.println("SEND KILL SIGNAL");
       if (Is_Power_On) {
         Is_Power_On = 0;
-        smtp_service.send_email(email);  
+        sendmail();  
       }
     }
   }
 
+  if (current_time==10000) {
+     Serial.println("sent email");   
+     sendmail();
+  }
+  
   // report some interersting things
   if( (current_time / report_interval) > report_count) {
     Serial.print("Time: ");
@@ -136,13 +119,13 @@ void loop() {
     int looper;
 
     if ( index != 0)
-      total = total + readings[0] - readings[numReadings - 1];
+      total +=  readings[0] - readings[numReadings - 1];
 
     for ( looper = 1; looper < index; looper++)
-      total = total + readings[looper] - readings[looper - 1];    
+      total += readings[looper] - readings[looper - 1];    
 
     for ( looper = index + 1; looper < numReadings; looper++)
-      total = total + readings[looper] - readings[looper -1];     
+      total += readings[looper] - readings[looper -1];     
 
     Pulses_Per_Second = MilliPerSecond / (total / numReadings);
     Serial.print("Average last readings: ");
@@ -154,9 +137,9 @@ void loop() {
 
     // countdown the time for override mode
     if(override_mode) {
-      override_time = override_time - report_interval;
+      override_time -= report_interval;
       Serial.print("IN OVERRIDE MODE time left: ");
-      Serial.println(override_time); 
+      Serial.print(override_time); 
       Serial.println(" milliseconds "); 
       if (override_time<0) {
         override_mode=0;
@@ -170,6 +153,41 @@ void loop() {
   handle_http();
 
 }
+
+void sendmail() {
+  
+  EthernetClient SMTPclient;
+  Serial.print("Connecting...");
+    
+  if(!SMTPclient.connect(smtp_server, 25))
+  {
+    Serial.println("connection failed.");
+    return;
+  }
+    
+  Serial.println("Connected.");
+  delay(10000);
+
+  SMTPclient.println("ehlo douwedejong.com"); 
+  delay(10000);
+
+  SMTPclient.println("mail from:failsafe@douwedejong.com");
+  SMTPclient.println("rcpt to:douwe.jong@gmail.com");
+
+  SMTPclient.println("data");
+  SMTPclient.println("from: failsafe@douwedejong.com");
+  SMTPclient.println("to: douwe.jong@gmail.com");
+  SMTPclient.println("subject: FLOW ALERT at JPH");
+  SMTPclient.println("The power was switched off.");
+  SMTPclient.println(".");
+  SMTPclient.println("quit");
+
+  delay(5000);
+    
+  Serial.println("Disconnecting.");
+  SMTPclient.stop();
+}
+ 
 
 void reset_http_vals() {
   // Reinitializing variables
@@ -308,8 +326,13 @@ void handle_http() {
       client.print(Liter_per_minute);
 
       if (override_time>0) {
-        client.print("<br>Override mode, seconds left: ");
-        client.print(override_time / 1000);
+        client.print("<br>Override mode, time remaining: ");
+        client.print(override_time / 1000 / 60);
+        client.print(":");
+        int remainder = (override_time / 1000) % 60;
+        if (remainder < 10)
+          client.print("0");
+        client.print(remainder);
         client.print("<br><br>*** WARNING - NO FLOW MONITORING, OVERRIDE MODE WILL NOT DISABLE POWER ***");
       } 
       else 
@@ -320,8 +343,8 @@ void handle_http() {
       client.println("<input type=\"text\" value=\"");
       //     client.print(override_time);
       client.print("\" name=\"override_time\" />");
-      client.print(" (0=off) ");
-      client.println("<input type=\"submit\" value=\"Override\" />");                               
+      client.print(" (0=off,60=max) ");
+      client.println("<input type=\"submit\" value=\"Reset\" />");                               
       client.println("</form> <br /> ");
 
       client.println("</html>");        
