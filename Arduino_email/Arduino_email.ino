@@ -79,7 +79,7 @@ void loop() {
 
   // read the input pin:
   int buttonState = digitalRead(pin_input);
-  Serial.print(buttonState);
+  // Serial.print(buttonState);
 
   // count pulses in the loop
   if ( buttonState != lastpulse ) {
@@ -141,7 +141,7 @@ void loop() {
     for ( looper = index + 1; looper < numReadings; looper++)
       total += readings[looper] - readings[looper - 1];     
 
-    Pulses_Per_Second = MilliPerSecond / (total / numReadings);
+    Pulses_Per_Second = MilliPerSecond / (total / (numReadings-1));
 
     if (debugflow) Serial.print("Average : ");
     if (debugflow) Serial.println(Pulses_Per_Second);
@@ -334,7 +334,6 @@ void handle_http() {
 
       if (jsonresponse) {
         // JSON CODE
-
         client.println("HTTP/1.1 200 OK");
         client.println("Content-Type: application/json");
         client.println("Connection: close");
@@ -370,6 +369,8 @@ void handle_http() {
       else {
         // HTML CODE
         client.println("<!DOCTYPE html>");
+//        client.println("HTTP/1.1 200 OK");
+//        client.println("<meta http-equiv=\"Content-Type\" content=\"text/html;charset=ISO-8859-8\">"); 
         client.print("<meta http-equiv=\"refresh\" content=\"");
         client.print(report_interval/1000*5);
         client.println("\">");
