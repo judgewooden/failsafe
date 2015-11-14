@@ -21,6 +21,8 @@ char data[50];
 char datamotor[5];
 
 // new code
+int debugflow = 0;
+int jsonresponse = 0;
 int lastpulse = 0;
 unsigned long last_pulse_time = 0;
 unsigned long current_time;
@@ -31,7 +33,7 @@ const double MilliPerSecond = 1000;
 double Pulses_Per_Second;
 double Liter_per_minute;
 int Is_Power_On = 0;
-long override_time= 30000;  // Start for 30 seconds in override mode 
+long override_time= 120000;  // Overrude sgub moniutoring fail 
 int override_mode = 0;
 
 // Keep the last 10 seconds time stamps
@@ -88,15 +90,15 @@ void loop() {
 
   // check if the power should switch off
   if(current_time > (timeout_millisecs + last_pulse_time) ) {
-    Serial.print("FLOW ALERT. No flow for ");
-    Serial.print(timeout_millisecs);
-    Serial.print(" milliseconds. ");
+    if (debugflow) Serial.print("ALERT. No flow for ");
+    if (debugflow) Serial.print(timeout_millisecs);
+    if (debugflow) Serial.print(" milliseconds. ");
     if (override_mode) {
-      Serial.println("OVERRIDE MODE --- KILL SIGNAL SKIPPED)!");
+      if (debugflow) Serial.println("KILL SIGNAL SKIPPED)!");
     }
     else {
       digitalWrite(pin_output, LOW);
-      Serial.println("SEND KILL SIGNAL");
+      if (debugflow) Serial.println("SEND KILL SIGNAL");
       if (Is_Power_On) {
         Is_Power_On = 0;
         sendmail();  
@@ -104,15 +106,16 @@ void loop() {
     }
   }
 
-  if (current_time==10000) {
-     Serial.println("sent email");   
-     sendmail();
-  }
+// ---- Hmmmmmmm this is not needed !!!!
+// if (current_time==10000) {
+//     Serial.println("sent email");   
+//     sendmail();
+//  }
   
   // report some interersting things
   if( (current_time / report_interval) > report_count) {
-    Serial.print("Time: ");
-    Serial.println(current_time);
+    if (debugflow) Serial.print("Time: ");
+    if (debugflow) Serial.println(current_time);
 
     // Show the average for last readings
     double total = 0;
@@ -128,19 +131,19 @@ void loop() {
       total += readings[looper] - readings[looper -1];     
 
     Pulses_Per_Second = MilliPerSecond / (total / numReadings);
-    Serial.print("Average last readings: ");
-    Serial.println(Pulses_Per_Second);
+    if (debugflow) Serial.print("Average : ");
+    if (debugflow) Serial.println(Pulses_Per_Second);
 
     Liter_per_minute = Pulses_Per_Second * 60 / 169;
-    Serial.print("Liter per Minute: ");
-    Serial.println(Liter_per_minute);
+    if (debugflow) Serial.print("Liter /pm: ");
+    if (debugflow) Serial.println(Liter_per_minute);
 
     // countdown the time for override mode
     if(override_mode) {
       override_time -= report_interval;
-      Serial.print("IN OVERRIDE MODE time left: ");
-      Serial.print(override_time); 
-      Serial.println(" milliseconds "); 
+      if (debugflow) Serial.print("IN OVERRIDE MODE time left: ");
+      if (debugflow) Serial.print(override_time); 
+      if (debugflow) Serial.println(" milliseconds "); 
       if (override_time<0) {
         override_mode=0;
         override_time=0;
@@ -157,7 +160,6 @@ void loop() {
 void sendmail() {
   
   EthernetClient SMTPclient;
-  Serial.print("Connecting...");
     
   if(!SMTPclient.connect(smtp_server, 25))
   {
@@ -165,7 +167,7 @@ void sendmail() {
     return;
   }
     
-  Serial.println("Connected.");
+  Serial.println("Email Connected.");
   delay(10000);
 
   SMTPclient.println("ehlo douwedejong.com"); 
@@ -223,7 +225,16 @@ void handle_http() {
         // If "GET" is caught, skip the request info
         if( readString.equals("GET")) {
           Serial.println("");
-          Serial.println("GET caught, skipping request and printing HTML");
+          c = client.read();
+          c = client.read();
+          c = client.read();
+          if (c == 'X') 
+            jsonresponse=1;
+          else
+            jsonresponse=0;
+          Serial.print("JSON X=");
+          Serial.print(jsonresponse);  
+          Serial.println(", GET");
           break;
         }
 
@@ -232,7 +243,7 @@ void handle_http() {
         // We then skip the request header and this "if" becomes our main function
         if( readString.equals("POST")) {
           Serial.println("");
-          Serial.println("POST caught, skipping header and acquiring DATA");
+          Serial.println("POST");
           // 320 is arbitrary. The actual length that has to be skipped depends on
           // several user settings ( browser, language, addons...)
           // the skipped length has not to be too long to skip relevant data
@@ -292,11 +303,11 @@ void handle_http() {
           Serial.println(data + i);
 
           override_time = atoi(data + i);
-          if (override_time>60)
-            override_time = 60;
+          if (override_time>150)
+            override_time = 150;
 
           override_time *= 60000;
-          Serial.print("New override period: ");
+          Serial.print("Override period: ");
           Serial.println(override_time);
 
           if(override_time>0)
@@ -306,48 +317,71 @@ void handle_http() {
         }
       }
 
-      // HTML CODE
-      client.println("<!DOCTYPE html>");
-      client.print("<meta http-equiv=\"refresh\" content=\"");
-      client.print(report_interval/1000*5);
-      client.println("\">");
-      client.println("<html>");
-      Serial.print(report_interval/1000*5);
+      if (jsonresponse) {
+          // JSON CODE
+          
+        client.println("HTTP/1.1 200 OK");
+        client.println("Content-Type: application/json");
+        client.println("Connection: close");
+        client.println();
+        client.print("{\"Power\":");
+          client.print(Is_Power_On);
+        client.print(",\"FlowPerSecond\":");
+          client.print(Pulses_Per_Second);
+        client.print(",\"LitersPerSecond\":");
+          client.print(Liter_per_minute);
+        client.print(",\"OverrideTime\":");
+          client.print(override_time);
+        client.print(",\"CurrentTime\":");
+          client.print(current_time);
+        client.println("}");
+        client.println("");
 
-      if (Is_Power_On)
-        client.print("The power is ON");
-      else
-        client.print("The power is OFF");
+          
+      } else {
+          // HTML CODE
+        client.println("<!DOCTYPE html>");
+        client.print("<meta http-equiv=\"refresh\" content=\"");
+        client.print(report_interval/1000*5);
+        client.println("\">");
+        client.println("<html>");
+        //Serial.print(report_interval/1000*5);
 
-      client.print("<br>Flow per second: ");
-      client.print(Pulses_Per_Second);
-
-      client.print("<br>Liters per minute: ");
-      client.print(Liter_per_minute);
-
-      if (override_time>0) {
-        client.print("<br>Override mode, time remaining: ");
-        client.print(override_time / 1000 / 60);
-        client.print(":");
-        int remainder = (override_time / 1000) % 60;
-        if (remainder < 10)
-          client.print("0");
-        client.print(remainder);
-        client.print("<br><br>*** WARNING - NO FLOW MONITORING, OVERRIDE MODE WILL NOT DISABLE POWER ***");
-      } 
-      else 
-        client.print("<br>Monitoring mode");
-      client.print("<br> ");
-
-      client.println("<br><form name=input method=post>Set override minutes : ");
-      client.println("<input type=\"text\" value=\"");
-      //     client.print(override_time);
-      client.print("\" name=\"override_time\" />");
-      client.print(" (0=off,60=max) ");
-      client.println("<input type=\"submit\" value=\"Reset\" />");                               
-      client.println("</form> <br /> ");
-
-      client.println("</html>");        
+        if (Is_Power_On)
+          client.print("The power is ON");
+        else
+          client.print("The power is OFF");
+  
+        client.print("<br>Flow per second: ");
+        client.print(Pulses_Per_Second);
+  
+        client.print("<br>Liters per minute: ");
+        client.print(Liter_per_minute);
+  
+        if (override_time>0) {
+          client.print("<br>Override mode, time remaining: ");
+          client.print(override_time / 1000 / 60);
+          client.print(":");
+          int remainder = (override_time / 1000) % 60;
+          if (remainder < 10)
+            client.print("0");
+          client.print(remainder);
+          client.print("<br><br>*** WARNING - OVERRIDE MODE WILL NOT DISABLE POWER ***");
+        } 
+        else 
+          client.print("<br>Monitoring mode");
+        client.print("<br> ");
+  
+        client.println("<br><form name=input method=post>Set override minutes : ");
+        client.println("<input type=\"text\" value=\"");
+        //     client.print(override_time);
+        client.print("\" name=\"override_time\" />");
+        client.print(" (0=off,150=max) ");
+        client.println("<input type=\"submit\" value=\"Reset\" />");                               
+        client.println("</form> <br /> ");
+  
+        client.println("</html>");        
+      }
       client.stop();
     }
   }
