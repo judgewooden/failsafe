@@ -1,6 +1,8 @@
 #include "Ethernet.h"
 #include <SPI.h>
 
+// Upload to Arduin Duemilanova w/ Atmega328
+
 int pin_input = 3;
 int pin_output = 4;
 
@@ -8,11 +10,11 @@ int pin_output = 4;
 byte mac[] = { 
   0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; //physical mac address
 byte ip[] = { 
-  192, 168, 8, 11 }; // ip in lan
+  192, 168, 0, 8 }; // ip in lan
 byte gateway[] = { 
-  192, 168, 8, 1 }; // internet access via router
+  192, 168, 0, 1 }; // internet access via router
 byte smtp_server[] = { 
-  192, 168, 8, 5}; // douwedejong.com
+  192, 168, 0, 5}; // douwedejong.com
 
 // HMTL processing variables
 EthernetServer server(80); //server port
