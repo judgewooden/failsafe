@@ -8,9 +8,9 @@ Purpose: Check if there is water flow in the cooling system. If not, switch off 
 
 Hardware: 
 
-1x Arduino
+1x Arduino 
 
-1x Arduino Ethernetboard
+1x Arduino Ethernetboard (Duemilanova w/ Atmega328)
 
 1x water flow meter
 
@@ -20,7 +20,6 @@ Hardware:
 Files: 
 
 Fritzing ethernet arduino board.fzz  = logical circuit drawing 
-
 Arduino_email.ino = Arduino Code 
 
 
