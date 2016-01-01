@@ -3,8 +3,8 @@
 
 // Upload to Arduin Duemilanova w/ Atmega328
 
-int pin_input = 3;
-int pin_output = 4;
+int pin_input = 4;
+int pin_output = 3;
 
 // Ethernet library configuration
 byte mac[] = { 
@@ -117,6 +117,15 @@ void loop() {
         sendmail();  
       }
     }
+    
+    // if no flow for double the timeout period blank all flow values
+    /*
+    if(current_time > ((2 * timeout_millisecs) + last_pulse_time) ) {
+      int i;
+      for (i = 0; i < numReadings; i++)
+        readings[i] = 0.0; 
+    }
+    */
   }
 
   // ---- Hmmmmmmm this is not needed !!!!
