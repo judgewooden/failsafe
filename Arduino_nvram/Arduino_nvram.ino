@@ -15,7 +15,7 @@
  #define DEBUG_PRINTLN(x)
 #endif
 
-//#define DEBUGFLOW 
+//#define DEBUGFLOW
 #ifdef DEBUGFLOW
  #define DFLOW_PRINT(x)        Serial.print(x)
  #define DFLOW_PRINTDEC(x)     Serial.print(x, DEC)
@@ -26,7 +26,7 @@
  #define DFLOW_PRINTLN(x)
 #endif
 
-#define DEBUGHTTP
+//#define DEBUGHTTP
 #ifdef DEBUGHTTP
  #define DHTTP_PRINT(x)        Serial.print(x)
  #define DHTTP_PRINTDEC(x)     Serial.print(x, DEC)
@@ -141,7 +141,7 @@ void setup() {
         last_pulse_time[z]=millis();
       }
     }
-  }    
+  }
 }
 
 void loop() {
@@ -149,10 +149,10 @@ void loop() {
   // read the input pin:
   for (int z = 0; z < numCircuits; z++) {
     int buttonState = digitalRead(pin_input[z]);
-    //DEBUG_PRINT(z);
-    //DEBUG_PRINT(">");
-    //DEBUG_PRINT(buttonState);
-    //DEBUG_PRINT(" ");
+    DEBUG_PRINT(z);
+    DEBUG_PRINT(">");
+    DEBUG_PRINT(buttonState);
+    DEBUG_PRINT(" ");
 
     // count pulses in the loop
     if ( buttonState != lastpulse[z] ) {
@@ -327,32 +327,26 @@ void handle_http() {
           break;
         }
 
-// TODO WRITE BETTER ROUTINE TO PROCESS POSTSS
-        // Otherwise, if the request contains data,
-        // the first characters will be "POST"
-        // We then skip the request header and this "if" becomes our main function
+
         if( readString.equals("POST")) {
           DHTTP_PRINTLN("POST");
-          // 320 is arbitrary. The actual length that has to be skipped depends on
-          // several user settings ( browser, language, addons...)
-          // the skipped length has not to be too long to skip relevant data
-          // and not to short to waste computing time
+          // 320 is arbitrary.
           for(int i=0; i<320; i++) {
             c = client.read();
-            DHTTP_PRINT(c); // UNCOMMENT FOR DEBUG
+            DHTTP_PRINT(c);
           }
 
           //Searches for "Length: "
           while(c != 'L') {
             c = client.read();
-            DHTTP_PRINT(c); // UNCOMMENT FOR DEBUG
+            DHTTP_PRINT(c);
           }
 
           // Skip "Length: "
           for (int i=0; i<7; i++)
           {
             c = client.read();
-            DHTTP_PRINT(c); // UNCOMMENT FOR DEBUG
+            DHTTP_PRINT(c);
           }
 
           // Read the data package length
@@ -386,46 +380,46 @@ void handle_http() {
           DHTTP_PRINT("var: ");
           DHTTP_PRINTLN(data[0]);
           readString ="";
-          lasteepromcode=1; 
-          
+          lasteepromcode=1;
+
           // User clicked on RESET
           if (data[0]=='O') {
-            
+
             int i = 0;
             while(data[i] != '=')
               i++;
             i++;
-             
+
             DHTTP_PRINTLN(data + i);
-  
+
             override_time = atoi(data + i);
             if (override_time>150)
               override_time = 150;
-  
+
             override_time *= 60000;
             DHTTP_PRINT("Override period: ");
             DHTTP_PRINTLN(override_time);
-  
+
             if(override_time>0)
               override_mode=1;
             else
               override_mode=0;
           }
-          else {
+          else { // User clicked on APPLY
 
-            int i = 0;            
-            
+            int i = 0;
+
             for (int z = 0; z < numCircuits; z++) {
-              
+
               while(data[i] != '=')
-                i++;          
-              i++; 
-              
+                i++;
+              i++;
+
               DHTTP_PRINT("[");
               DHTTP_PRINT(z);
               DHTTP_PRINT("] ");
               if( data[i] == '1') {
-                DHTTP_PRINTLN("OFF");                
+                DHTTP_PRINTLN("OFF");
                 monitorMode[z]=1;
               }
               if( data[i] == '2') {
@@ -435,32 +429,32 @@ void handle_http() {
             }
 
             while(data[i] != '=')
-              i++;          
-            i++; 
+              i++;
+            i++;
 
             long temp;
             temp=atol(data + i);
             DHTTP_PRINT("E=");
             DHTTP_PRINTLN(temp);
             if (temp==125221) {
-              DHTTP_PRINTLN("SAVE");     
-              lasteepromcode=3; 
-              
+              DHTTP_PRINTLN("SAVE");
+              lasteepromcode=3;
+
               if ( EEPROM.read(0) != 125 )
                 EEPROM.write(0, 125);
 
               if ( EEPROM.read(1) != 221 )
                 EEPROM.write(1, 221);
-    
+
               for (int z = 0; z < numCircuits; z++) {
                 if ( EEPROM.read(z+2) != monitorMode[z])
                   EEPROM.write(z+2, monitorMode[z]);
-              } 
+              }
             } else {
               if(temp>0)
-                lasteepromcode=2; 
+                lasteepromcode=2;
             }
-          }           
+          }
         }
         jsonresponse=0;
       }
@@ -508,8 +502,6 @@ void handle_http() {
       else {
         // HTML CODE
         client.println("<!DOCTYPE html>");
-        //        client.println("HTTP/1.1 200 OK");
-        //        client.println("<meta http-equiv=\"Content-Type\" content=\"text/html;charset=ISO-8859-8\">");
         client.print("<meta http-equiv=\"refresh\" content=\"");
         client.print(report_interval/1000*5);
         client.println("\">");
