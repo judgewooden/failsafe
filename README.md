@@ -24,7 +24,7 @@ Hardware:
 
 - 1x Arduino
 - 1x Arduino Ethernetboard (Duemilanova w/Atmega328)
-- 3x water flow meter
+- 3x water flow meters
 - 1x 220v switch
 
 ## Circuits
