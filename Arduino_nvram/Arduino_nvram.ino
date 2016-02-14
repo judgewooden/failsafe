@@ -70,14 +70,14 @@ unsigned long report_count = 0;         // the last time that a calculation for 
 int report_interval = 1000;             // Nr of miliseconds to calculate flow numbers
 
 // Ethernet library configuration
-byte mac[] = {
-  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; // physical mac address
+byte mac[] = {  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
+                                        // physical mac address
 byte ip[] = {192, 168, 0, 8 };          // ip in lan
 byte gateway[] = {192, 168, 0, 1 };     // internet access via router
 
 // HMTL processing variables
 EthernetServer server(80);              // server port
-String readString = "";                 // string to get incoming data
+String readString = "";                 // string to process incoming data
 char c;
 char buffer[10];
 int dataLength=0;
