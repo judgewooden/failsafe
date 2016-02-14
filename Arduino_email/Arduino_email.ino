@@ -7,13 +7,13 @@ int pin_input = 4;
 int pin_output = 3;
 
 // Ethernet library configuration
-byte mac[] = { 
+byte mac[] = {
   0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; //physical mac address
-byte ip[] = { 
+byte ip[] = {
   192, 168, 0, 8 }; // ip in lan
-byte gateway[] = { 
+byte gateway[] = {
   192, 168, 0, 1 }; // internet access via router
-byte smtp_server[] = { 
+byte smtp_server[] = {
   192, 168, 0, 5}; // douwedejong.com
 
 // HMTL processing variables
@@ -56,10 +56,10 @@ void setup() {
   Serial.begin(9600);
 
   for (index = 0; index < numReadings; index++)
-    readings[index] = 0.0;     
+    readings[index] = 0.0;
 
   Ethernet.begin(mac, ip, gateway); //start Ethernet
-  delay(1000);   
+  delay(1000);
 
   digitalWrite(pin_output, HIGH);
   Is_Power_On = 1;
@@ -92,7 +92,7 @@ void loop() {
 
       readings[index]=last_pulse_time;
       index++;
-      if (index >= numReadings) 
+      if (index >= numReadings)
         index=0;
     }
   }
@@ -108,29 +108,29 @@ void loop() {
       if (debugflow) {
         Serial.println("KILL SIGNAL SKIPPED)!");
       }
-    } 
+    }
     else {
       digitalWrite(pin_output, LOW);
       if (debugflow) Serial.println("SEND KILL SIGNAL");
       if (Is_Power_On) {
         Is_Power_On = 0;
-        sendmail();  
+        sendmail();
       }
     }
-    
+
     // if no flow for double the timeout period blank all flow values
     /*
     if(current_time > ((2 * timeout_millisecs) + last_pulse_time) ) {
       int i;
       for (i = 0; i < numReadings; i++)
-        readings[i] = 0.0; 
+        readings[i] = 0.0;
     }
     */
   }
 
   // ---- Hmmmmmmm this is not needed !!!!
   // if (current_time==10000) {
-  //     Serial.println("sent email");   
+  //     Serial.println("sent email");
   //     sendmail();
   //  }
 
@@ -147,10 +147,10 @@ void loop() {
       total +=  readings[0] - readings[numReadings - 1];
 
     for ( looper = 1; looper < index; looper++)
-      total += readings[looper] - readings[looper - 1];    
+      total += readings[looper] - readings[looper - 1];
 
     for ( looper = index + 1; looper < numReadings; looper++)
-      total += readings[looper] - readings[looper - 1];     
+      total += readings[looper] - readings[looper - 1];
 
     Pulses_Per_Second = MilliPerSecond / (total / (numReadings-1));
 
@@ -168,16 +168,16 @@ void loop() {
     if(override_mode) {
       override_time -= report_interval;
       if (debugflow) Serial.print("IN OVERRIDE MODE time left: ");
-      if (debugflow) Serial.print(override_time); 
-      if (debugflow) Serial.println(" milliseconds "); 
+      if (debugflow) Serial.print(override_time);
+      if (debugflow) Serial.println(" milliseconds ");
       if (override_time<0) {
         override_mode=0;
         override_time=0;
-      }          
+      }
     }
 
     report_count++;
-  }  
+  }
 
   handle_http();
 
@@ -196,15 +196,15 @@ void sendmail() {
   Serial.println("Email Connected.");
   delay(10000);
 
-  SMTPclient.println("ehlo douwedejong.com"); 
+  SMTPclient.println("ehlo xxxx.xxx");
   delay(10000);
 
-  SMTPclient.println("mail from:failsafe@douwedejong.com");
-  SMTPclient.println("rcpt to:douwe.jong@gmail.com");
+  SMTPclient.println("mail from:failsafe@xxxx.xxx");
+  SMTPclient.println("rcpt to:xxxx.xxxx@gmail.com");
 
   SMTPclient.println("data");
   SMTPclient.println("from: failsafe@douwedejong.com");
-  SMTPclient.println("to: douwe.jong@gmail.com");
+  SMTPclient.println("to: xxxx.xxx@gmail.com");
   SMTPclient.println("subject: FLOW ALERT at JPH");
   SMTPclient.println("The power was switched off.");
   SMTPclient.println(".");
@@ -254,12 +254,12 @@ void handle_http() {
           c = client.read();
           c = client.read();
           c = client.read();
-          if (c == 'X') 
+          if (c == 'X')
             jsonresponse=1;
           else
             jsonresponse=0;
           Serial.print("JSON X=");
-          Serial.print(jsonresponse);  
+          Serial.print(jsonresponse);
           Serial.println(", GET");
           break;
         }
@@ -280,7 +280,7 @@ void handle_http() {
           }
 
           //Searches for "Length: "
-          while(c != 'L') {         
+          while(c != 'L') {
             c = client.read();
             Serial.print(c); // UNCOMMENT FOR DEBUG
           }
@@ -300,7 +300,7 @@ void handle_http() {
           {
             readString += c;
             Serial.print(c);
-            c = client.read();   
+            c = client.read();
           }
           // convert data read from String to int
           readString.toCharArray(buffer, readString.length());
@@ -361,14 +361,14 @@ void handle_http() {
         client.print(current_time);
         client.print(",\"data\":[");
 
-        int looper;          
+        int looper;
         for ( looper = index; looper < numReadings; looper++) {
-          client.print(readings[looper]);    
+          client.print(readings[looper]);
           client.print(",");
         }
 
         for ( looper = 0; looper < index; looper++) {
-          client.print(readings[looper]);    
+          client.print(readings[looper]);
           if (looper < (index-1))
             client.print(",");
         }
@@ -376,12 +376,12 @@ void handle_http() {
         client.println("]}");
         client.println("");
 
-      } 
+      }
       else {
         // HTML CODE
         client.println("<!DOCTYPE html>");
 //        client.println("HTTP/1.1 200 OK");
-//        client.println("<meta http-equiv=\"Content-Type\" content=\"text/html;charset=ISO-8859-8\">"); 
+//        client.println("<meta http-equiv=\"Content-Type\" content=\"text/html;charset=ISO-8859-8\">");
         client.print("<meta http-equiv=\"refresh\" content=\"");
         client.print(report_interval/1000*5);
         client.println("\">");
@@ -408,8 +408,8 @@ void handle_http() {
             client.print("0");
           client.print(remainder);
           client.print("<br><br>*** WARNING - OVERRIDE MODE WILL NOT DISABLE POWER ***");
-        } 
-        else 
+        }
+        else
           client.print("<br>Monitoring mode");
         client.print("<br> ");
 
@@ -418,10 +418,10 @@ void handle_http() {
         //     client.print(override_time);
         client.print("\" name=\"override_time\" />");
         client.print(" (0=off,150=max) ");
-        client.println("<input type=\"submit\" value=\"Reset\" />");                               
+        client.println("<input type=\"submit\" value=\"Reset\" />");
         client.println("</form> <br /> ");
 
-        client.println("</html>");        
+        client.println("</html>");
       }
       client.stop();
     }
