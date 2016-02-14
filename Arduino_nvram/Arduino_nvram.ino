@@ -2,7 +2,7 @@
 #include <SPI.h>
 #include <EEPROM.h>
 
-// Upload to Arduin Duemilanova w/ Atmega328
+// Upload to Arduino Duemilanova w/Atmega328
 
 //#define DEBUG
 #ifdef DEBUG
@@ -40,7 +40,7 @@
 const int numCircuits = 2;             // number of water sensors connected
 const int numReadings = 25;            // number of pulses to check for flow calculation
 
-int pin_input[] = {5, 7, 7};              // On what pins are the water seonsors connected
+int pin_input[] = {5, 7, 7};           // On what pins are the water seonsors connected
 double pulses_per_liter[] = {169,169,169};
                                        // Number of pulses per liter water
 int pin_output = 6;                    // On what pin is the circuit breaker connected
@@ -56,29 +56,29 @@ unsigned long last_pulse_time[numCircuits];
                                         // When was the last pulse
 unsigned long readings[numReadings][numCircuits];
                                         // Array to keep pin readings to calculate flow
-int index[numCircuits];                 // keep track where we are in the Array
+int index[numCircuits];                 // Keep track where we are in the Array
 double Pulses_Per_Second[numCircuits];  // The calculated pulses per second
 double Liter_per_minute[numCircuits];   // The calculated liters per minute
 int valuesreset[numCircuits];           // Indicate if values are reset
-int monitorMode[numCircuits];           // type op monitoring 1=not monitor, 2=monitor, 3=load balance, else=ERROR
+int monitorMode[numCircuits];           // Type op monitoring 1=not monitor, 2=monitor, 3=load balance, else=ERROR
 
-unsigned long current_time;             // get the current system time
+unsigned long current_time;             // Get the current system time
 unsigned long timeout_millisecs = 5000; // Nr of miliseconds of no flow before activating circuit breakers
 
-const double MilliPerSecond = 1000;     // a field to force caculcation as a double
-unsigned long report_count = 0;         // the last time that a caulcation for flow was ade
+const double MilliPerSecond = 1000;     // a field to force calculation as a double
+unsigned long report_count = 0;         // the last time that a calculation for flow was ade
 int report_interval = 1000;             // Nr of miliseconds to calculate flow numbers
 
 // Ethernet library configuration
 byte mac[] = {
-  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; //physical mac address
+  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; // physical mac address
 byte ip[] = {192, 168, 0, 8 };          // ip in lan
 byte gateway[] = {192, 168, 0, 1 };     // internet access via router
 byte smtp_server[] = {192, 168, 0, 5};  // my-host.com
 
 // HMTL processing variables
-EthernetServer server(80);              //server port
-String readString = "";                 //string to get incoming data
+EthernetServer server(80);              // server port
+String readString = "";                 // string to get incoming data
 char c;
 char buffer[10];
 int dataLength=0;
@@ -95,7 +95,7 @@ void setup() {
     last_pulse_time[z]=0;
     index[z]=0;
     valuesreset[z]=0;
-    monitorMode[z]=2;                    // By default we monitor - except if override or from EEPROM
+    monitorMode[z]=2;                    // By default we monitor - except if override from EEPROM
   }
   pinMode(pin_output, OUTPUT);
 
@@ -295,17 +295,15 @@ void handle_http() {
 
   if (client) {
     while (client.connected()) {
-      while (client.available()) { // Receive client data
+      while (client.available()) {
 
         DHTTP_PRINT(".");
-        c = client.read(); //read char by char HTTP request
+        c = client.read();
         readString +=c;
-        //Serial.print(c); //output chars to serial port
+        DHTTP_PRINT(c);
 
-        // If first request upon connexion, the 3 first characters will be "GET"
-        // If "GET" is caught, skip the request info
         if( readString.equals("GET")) {
-          DHTTP_PRINT("");
+          DHTTP_PRINTLN(" ");
           c = client.read();
           c = client.read();
           c = client.read();
@@ -326,7 +324,6 @@ void handle_http() {
           DHTTP_PRINTLN(", GET");
           break;
         }
-
 
         if( readString.equals("POST")) {
           DHTTP_PRINTLN("POST");
@@ -592,11 +589,3 @@ void handle_http() {
 
   reset_http_vals();
 }
-
-
-
-
-
-
-
-
