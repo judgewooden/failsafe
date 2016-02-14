@@ -4,9 +4,37 @@
 // Upload to Arduin Duemilanova w/ Atmega328
 
 #define DEBUG 1
+#ifdef DEBUG
+ #define DEBUG_PRINT(x)        Serial.print (x)
+ #define DEBUG_PRINTDEC(x)     Serial.print (x, DEC)
+ #define DEBUG_PRINTLN(x)      Serial.println (x)
+#else
+ #define DEBUG_PRINT(x)
+ #define DEBUG_PRINTDEC(x)
+ #define DEBUG_PRINTLN(x)
+#endif
 
-int debugflow = 1;                     // Are we debugging flow via serial interface
-int debughttp = 1;                     // Are we debugging http via serial interfaces
+#define DEBUGFLOW 1
+#ifdef DEBUGFLOW
+ #define DFLOW_PRINT(x)        Serial.print (x)
+ #define DFLOW_PRINTDEC(x)     Serial.print (x, DEC)
+ #define DFLOW_PRINTLN(x)      Serial.println (x)
+#else
+ #define DFLOW_PRINT(x)
+ #define DFLOW_PRINTDEC(x)
+ #define DFLOW_PRINTLN(x)
+#endif
+
+#define DEBUGHTTP 1
+#ifdef DEBUGHTTP
+ #define DHTTP_PRINT(x)        Serial.print (x)
+ #define DHTTP_PRINTDEC(x)     Serial.print (x, DEC)
+ #define DHTTP_PRINTLN(x)      Serial.println (x)
+#else
+ #define DHTTP_PRINT(x)
+ #define DHTTP_PRINTDEC(x)
+ #define DHTTP_PRINTLN(x)
+#endif
 
 const int numCircuits = 2;             // number of water sensors connected
 const int numReadings = 25;            // number of pulses to check for flow calculation
@@ -30,6 +58,7 @@ int index[numCircuits];                 // keep track where we are in the Array
 double Pulses_Per_Second[numCircuits];  // The calculated pulses per second
 double Liter_per_minute[numCircuits];   // The calculated liters per minute
 int valuesreset[numCircuits];           // Indicate if values are reset
+int monitorMode[numCircuits];           // type op monitoring 1=not monitor, 2=monitor, 3=load balance, else=ERROR
 
 unsigned long current_time;             // get the current system time
 unsigned long timeout_millisecs = 5000; // Nr of miliseconds of no flow before activating circuit breakers
@@ -56,7 +85,6 @@ int dataLength =0;
 char data[50];
 char datamotor[5];
 
-
 void setup() {
 
   for (int z = 0; z < numCircuits; z++) {
@@ -65,6 +93,7 @@ void setup() {
     last_pulse_time[z]=0;
     index[z]=0;
     valuesreset[z]=0;
+    monitorMode[z]=0;
   }
   pinMode(pin_output, OUTPUT);
 
@@ -81,13 +110,26 @@ void setup() {
   digitalWrite(pin_output, HIGH);
   Is_Power_On = 1;
 
-  Serial.print("POWER:");
-  Serial.println(Is_Power_On);
+  DEBUG_PRINT("POWER:");
+  DEBUG_PRINT(Is_Power_On);
 
   if(override_time>0)
     override_mode=1;
   else
     override_mode=0;
+
+  // See if a value has been saved in NVRAM (check codes 125&221 in first two bytes)
+  if ( EEPROM.read(0) == 125 ) {
+    if ( EEPROM.read(1) == 221 ) {
+      for(z=2,z < (numCircuits+2); z++) {
+        monitorMode[z]=EEPROM.read(z)
+        DEBUG_PRINT("[");
+        DEBUG_PRINT(z);
+        DEBUG_PRINT("] EEPROM Config=");
+        DEBUG_PRINTLN(monitorMode[z]);
+      }
+    ]
+  }
 
 }
 
@@ -96,10 +138,10 @@ void loop() {
   // read the input pin:
   for (int z = 0; z < numCircuits; z++) {
     int buttonState = digitalRead(pin_input[z]);
-    //Serial.print(z);
-    //Serial.print(">");
-    //Serial.print(buttonState);
-    //Serial.print(" ");
+    DEBUG_PRINT(z);
+    DEBUG_PRINT(">");
+    DEBUG_PRINT(buttonState);
+    DEBUG_PRINT(" ");
 
     // count pulses in the loop
     if ( buttonState != lastpulse[z] ) {
@@ -118,32 +160,34 @@ void loop() {
 
   current_time = millis();
 
-  // check if the power should switch off  (for now only check first loop)
-  //  for (int z = 0; z < numCircuits; z++) {
-    if(current_time > (timeout_millisecs + last_pulse_time[0]) ) {
-      if (debugflow) Serial.print("[");
-      if (debugflow) Serial.print(0);
-      if (debugflow) Serial.print("] ");
-      if (debugflow) Serial.print("ALERT. No flow for ");
-      if (debugflow) Serial.print(timeout_millisecs);
-      if (debugflow) Serial.print(" milliseconds. ");
-      if (override_mode) {
-        if (debugflow) Serial.println("KILL SIGNAL SKIPPED)!");
-      }
-      else {
-        digitalWrite(pin_output, LOW);
-        if (debugflow) Serial.println("SEND KILL SIGNAL");
-        if (Is_Power_On) {
-          Is_Power_On = 0;
+  // check if the power should switch off
+  for (int z = 0; z < numCircuits; z++) {
+    if (monitorMode[z]==1) {
+      DFLOW_PRINT("[");
+      DFLOW_PRINT(z);
+      DFLOW_PRINT("] ");
+      if(current_time > (timeout_millisecs + last_pulse_time[0]) ) {
+        DFLOW_PRINT("ALERT. No flow for ");
+        DFLOW_PRINT(timeout_millisecs);
+        DFLOW_PRINT(" milliseconds. ");
+        if (override_mode) {
+          DFLOW_PRINTLN("KILL SIGNAL SKIPPED)!");
+        }
+        else {
+          digitalWrite(pin_output, LOW);
+          DFLOW_PRINTLN("SEND KILL SIGNAL");
+          if (Is_Power_On) {
+            Is_Power_On = 0;
+          }
         }
       }
     }
-  //}
+  }
 
   // report some interersting things
   if( (current_time / report_interval) > report_count) {
-    if (debugflow) Serial.print("Time: ");
-    if (debugflow) Serial.println(current_time);
+    DFLOW_PRINT("Time: ");
+    DFLOW_PRINTLN(current_time);
 
     for (int z = 0; z < numCircuits; z++) {
 
@@ -162,29 +206,27 @@ void loop() {
 
       Pulses_Per_Second[z] = MilliPerSecond / (total / (numReadings-1));
 
-      if (debugflow) Serial.print("[");
-      if (debugflow) Serial.print(z);
-      if (debugflow) Serial.print("] ");
-      if (debugflow) Serial.print("Average : ");
-      if (debugflow) Serial.println(Pulses_Per_Second[z]);
+      DFLOW_PRINT("[");
+      DFLOW_PRINT(z);
+      DFLOW_PRINT("] Average : ");
+      DFLOW_PRINTLN(Pulses_Per_Second[z]);
 
       Liter_per_minute[z] = Pulses_Per_Second[z] * 60 / pulses_per_liter[z];
-      if (debugflow) Serial.print("[");
-      if (debugflow) Serial.print(z);
-      if (debugflow) Serial.print("] ");
-      if (debugflow) Serial.print("Liter /pm: ");
-      if (debugflow) Serial.println(Liter_per_minute[z]);
+      DFLOW_PRINT("[");
+      DFLOW_PRINT(z);
+      DFLOW_PRINT("] Liter /pm: ");
+      DFLOW_PRINTLN(Liter_per_minute[z]);
     }
 
-    if (debugflow) Serial.print("    POWER:");
-    if (debugflow) Serial.println(Is_Power_On);
+    DFLOW_PRINT("    POWER:");
+    DFLOW_PRINTLN(Is_Power_On);
 
     // countdown the time for override mode
     if(override_mode) {
       override_time -= report_interval;
-      if (debugflow) Serial.print("    IN OVERRIDE MODE time left: ");
-      if (debugflow) Serial.print(override_time);
-      if (debugflow) Serial.println(" milliseconds ");
+      DFLOW_PRINT("    IN OVERRIDE MODE time left: ");
+      DFLOW_PRINT(override_time);
+      DFLOW_PRINTLN(" milliseconds ");
       if (override_time<0) {
         override_mode=0;
         override_time=0;
@@ -198,19 +240,17 @@ void loop() {
           readings[i][z] = 0.0;
         }
         valuesreset[z]=1;
-        if (debugflow) Serial.print("[");
-        if (debugflow) Serial.print(z);
-        if (debugflow) Serial.print("] ");
-        if (debugflow) Serial.println(" (values reset)");
+        DFLOW_PRINT("[");
+        DFLOW_PRINT(z);
+        DFLOW_PRINTLN("] (values reset)");
       }
       else {
         if (valuesreset[z]) {
           if((current_time - last_pulse_time[z]) < (2 * timeout_millisecs) ) {
             valuesreset[z]=0;
-            if (debugflow) Serial.print("[");
-            if (debugflow) Serial.print(z);
-            if (debugflow) Serial.print("] ");
-            if (debugflow) Serial.println(" (flow detected)");
+            DFLOW_PRINT("[");
+            DFLOW_PRINT(z);
+            DFLOW_PRINTLN("] (flow detected)");
           }
         }
       }
@@ -218,9 +258,7 @@ void loop() {
 
     report_count++;
   }
-
   handle_http();
-
 }
 
 void reset_http_vals() {
@@ -256,7 +294,7 @@ void handle_http() {
         // If first request upon connexion, the 3 first characters will be "GET"
         // If "GET" is caught, skip the request info
         if( readString.equals("GET")) {
-          if (debughttp) Serial.println("");
+          DHTTP_PRINT("");
           c = client.read();
           c = client.read();
           c = client.read();
@@ -272,38 +310,38 @@ void handle_http() {
                 jsonresponse=0;
             }
           }
-          if (debughttp) Serial.print("JSON=");
-          if (debughttp) Serial.print(jsonresponse);
-          if (debughttp) Serial.println(", GET");
+          DHTTP_PRINT("JSON=");
+          DHTTP_PRINT(jsonresponse);
+          DHTTP_PRINTLN(", GET");
           break;
         }
 
+// TODO WRITE BETTER ROUTINE TO PROCESS POSTSS
         // Otherwise, if the request contains data,
         // the first characters will be "POST"
         // We then skip the request header and this "if" becomes our main function
         if( readString.equals("POST")) {
-          if (debughttp) Serial.println("");
-          if (debughttp) Serial.println("POST");
+          DHTTP_PRINTLN("POST");
           // 320 is arbitrary. The actual length that has to be skipped depends on
           // several user settings ( browser, language, addons...)
           // the skipped length has not to be too long to skip relevant data
           // and not to short to waste computing time
           for(int i=0; i<320; i++) {
             c = client.read();
-            if (debughttp) Serial.print(c); // UNCOMMENT FOR DEBUG
+            DHTTP_PRINT(c); // UNCOMMENT FOR DEBUG
           }
 
           //Searches for "Length: "
           while(c != 'L') {
             c = client.read();
-            if (debughttp) Serial.print(c); // UNCOMMENT FOR DEBUG
+            DHTTP_PRINT(c); // UNCOMMENT FOR DEBUG
           }
 
           // Skip "Length: "
           for (int i=0; i<7; i++)
           {
             c = client.read();
-            if (debughttp) Serial.print(c); // UNCOMMENT FOR DEBUG
+            DHTTP_PRINTc); // UNCOMMENT FOR DEBUG
           }
 
           // Read the data package length
@@ -313,15 +351,15 @@ void handle_http() {
           while(c != '\n')
           {
             readString += c;
-            if (debughttp) Serial.print(c);
+            DHTTP_PRINTc);
             c = client.read();
           }
           // convert data read from String to int
           readString.toCharArray(buffer, readString.length());
           dataLength = atoi(buffer);
-          if (debughttp) Serial.println("");
-          if (debughttp) Serial.print("dataLength: ");
-          if (debughttp) Serial.println(dataLength);
+          DHTTP_PRINTLN("");
+          DHTTP_PRINT("dataLength: ");
+          DHTTP_PRINTLN(dataLength);
 
           // gets DATA
           client.read(); // skips additional newline
@@ -330,9 +368,9 @@ void handle_http() {
             data[i] = client.read();
           }
 
-          if (debughttp) Serial.println("");
-          if (debughttp) Serial.print("data: ");
-          if (debughttp) Serial.println(data);
+          DHTTP_PRINTLN("");
+          DHTTP_PRINT("data: ");
+          DHTTP_PRINTLN(data);
 
           readString ="";
           int i = 0;
@@ -340,15 +378,15 @@ void handle_http() {
             i++;
           i++;
 
-          if (debughttp) Serial.println(data + i);
+          DHTTP_PRINTLN(data + i);
 
           override_time = atoi(data + i);
           if (override_time>150)
             override_time = 150;
 
           override_time *= 60000;
-          if (debughttp) Serial.print("Override period: ");
-          if (debughttp) Serial.println(override_time);
+          DHTTP_PRINT("Override period: ");
+          DHTTP_PRINTLN(override_time);
 
           if(override_time>0)
             override_mode=1;
@@ -367,6 +405,8 @@ void handle_http() {
         client.print(Is_Power_On);
         client.print(",\"Loop\":");
         client.print(jsonresponse-1);
+        client.print(",\"Mode\":");
+        client.print(monitorMode[jsonresponse-1]);
         client.print(",\"ValuesReset\":");
         client.print(valuesreset[jsonresponse-1]);
         client.print(",\"FlowPerSecond\":");
@@ -404,7 +444,6 @@ void handle_http() {
         client.print(report_interval/1000*5);
         client.println("\">");
         client.println("<html>");
-        //Serial.print(report_interval/1000*5);
 
         if (Is_Power_On)
           client.print("The power is ON");
@@ -417,9 +456,9 @@ void handle_http() {
           client.print("] ");
           client.print("Flow per second: ");
           client.print(Pulses_Per_Second[z]);
-
           if (valuesreset[z]>=1)
             client.print(" (values reset)");
+
           client.print("<br>[");
           client.print(z);
           client.print("] ");
@@ -427,10 +466,19 @@ void handle_http() {
           client.print(Liter_per_minute[z]);
           if (valuesreset[z]>=1)
             client.print(" (values reset)");
+
+          client.print("<br>[");
+          client.print(z);
+          client.print("] ");
+          if (monitorMode[z]==1)
+            client.print("Monitor Mode Enabled");
+          else
+            client.print("Monitor Mode Disabled");
+
         }
 
         if (override_time>0) {
-          client.print("<br>Override mode, time remaining: ");
+          client.print("<br><br>Override mode, time remaining: ");
           client.print(override_time / 1000 / 60);
           client.print(":");
           int remainder = (override_time / 1000) % 60;
@@ -451,6 +499,16 @@ void handle_http() {
         client.println("<input type=\"submit\" value=\"Reset\" />");
         client.println("</form> <br /> ");
 
+        client.println("<form name=input method=post>Configure Watch Method per loop:<br>");
+        for (int z = 0; z < numCircuits; z++) {
+          client.print("[");
+          client.print(z);
+          client.print("] <select name=\"");
+          client.print(z);
+          client.print("\"><option value=\"1\">Monitor</option><option value=\"2\">Do not Monitor</option>");
+          client.print("</select><br>");
+        }
+        client.print("<input type=\"submit\" value=\"Save\"/></form>")
         client.println("</html>");
       }
       client.stop();
