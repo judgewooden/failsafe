@@ -1,35 +1,36 @@
 #include "Ethernet.h"
 #include <SPI.h>
+#include <EEPROM.h>
 
 // Upload to Arduin Duemilanova w/ Atmega328
 
-#define DEBUG 1
+//#define DEBUG
 #ifdef DEBUG
- #define DEBUG_PRINT(x)        Serial.print (x)
- #define DEBUG_PRINTDEC(x)     Serial.print (x, DEC)
- #define DEBUG_PRINTLN(x)      Serial.println (x)
+ #define DEBUG_PRINT(x)        Serial.print(x)
+ #define DEBUG_PRINTDEC(x)     Serial.print(x, DEC)
+ #define DEBUG_PRINTLN(x)      Serial.println(x)
 #else
  #define DEBUG_PRINT(x)
  #define DEBUG_PRINTDEC(x)
  #define DEBUG_PRINTLN(x)
 #endif
 
-#define DEBUGFLOW 1
+//#define DEBUGFLOW 
 #ifdef DEBUGFLOW
- #define DFLOW_PRINT(x)        Serial.print (x)
- #define DFLOW_PRINTDEC(x)     Serial.print (x, DEC)
- #define DFLOW_PRINTLN(x)      Serial.println (x)
+ #define DFLOW_PRINT(x)        Serial.print(x)
+ #define DFLOW_PRINTDEC(x)     Serial.print(x, DEC)
+ #define DFLOW_PRINTLN(x)      Serial.println(x)
 #else
  #define DFLOW_PRINT(x)
  #define DFLOW_PRINTDEC(x)
  #define DFLOW_PRINTLN(x)
 #endif
 
-#define DEBUGHTTP 1
+#define DEBUGHTTP
 #ifdef DEBUGHTTP
- #define DHTTP_PRINT(x)        Serial.print (x)
- #define DHTTP_PRINTDEC(x)     Serial.print (x, DEC)
- #define DHTTP_PRINTLN(x)      Serial.println (x)
+ #define DHTTP_PRINT(x)        Serial.print(x)
+ #define DHTTP_PRINTDEC(x)     Serial.print(x, DEC)
+ #define DHTTP_PRINTLN(x)      Serial.println(x)
 #else
  #define DHTTP_PRINT(x)
  #define DHTTP_PRINTDEC(x)
@@ -39,8 +40,8 @@
 const int numCircuits = 2;             // number of water sensors connected
 const int numReadings = 25;            // number of pulses to check for flow calculation
 
-int pin_input[] = {5, 7};              // On what pins are the water seonsors connected
-double pulses_per_liter[] = {169,492};
+int pin_input[] = {5, 7, 7};              // On what pins are the water seonsors connected
+double pulses_per_liter[] = {169,169,169};
                                        // Number of pulses per liter water
 int pin_output = 6;                    // On what pin is the circuit breaker connected
 
@@ -48,6 +49,7 @@ long override_time= 120000;             // Give a 2 minute startup
 int override_mode = 0;                  // Are we monitoring the flow
 int Is_Power_On = 0;                    // Keep the state of the power breaker
 int jsonresponse = 0;                   // Should I reply with JSON data on the HTML
+int lasteepromcode = 1;                 // 1 == User never set anything, 2 == last code was wrong, 3 == last code was right
 
 int lastpulse[numCircuits];             // Was the last pulse high or low
 unsigned long last_pulse_time[numCircuits];
@@ -79,7 +81,7 @@ EthernetServer server(80);              //server port
 String readString = "";                 //string to get incoming data
 char c;
 char buffer[10];
-int dataLength =0;
+int dataLength=0;
 
 // Buffer containing processed hmtl data
 char data[50];
@@ -93,11 +95,10 @@ void setup() {
     last_pulse_time[z]=0;
     index[z]=0;
     valuesreset[z]=0;
-    monitorMode[z]=0;
+    monitorMode[z]=2;                    // By default we monitor - except if override or from EEPROM
   }
   pinMode(pin_output, OUTPUT);
 
-  //attachInterrupt(0, blink, FALLING);
   Serial.begin(9600);
 
   for (int z = 0; z < numCircuits; z++)
@@ -121,16 +122,26 @@ void setup() {
   // See if a value has been saved in NVRAM (check codes 125&221 in first two bytes)
   if ( EEPROM.read(0) == 125 ) {
     if ( EEPROM.read(1) == 221 ) {
-      for(z=2,z < (numCircuits+2); z++) {
-        monitorMode[z]=EEPROM.read(z)
+      for (int z = 0; z < numCircuits; z++) {
+        monitorMode[z]=EEPROM.read(z+2);
         DEBUG_PRINT("[");
         DEBUG_PRINT(z);
         DEBUG_PRINT("] EEPROM Config=");
         DEBUG_PRINTLN(monitorMode[z]);
       }
-    ]
+    }
   }
 
+  // set the default button state - else we start with garabage data
+  for (int z = 0; z < numCircuits; z++) {
+    int buttonState = digitalRead(pin_input[z]);
+    if ( buttonState != lastpulse[z] ) {
+      lastpulse[z] = buttonState;
+      if(lastpulse[z]) {
+        last_pulse_time[z]=millis();
+      }
+    }
+  }    
 }
 
 void loop() {
@@ -138,10 +149,10 @@ void loop() {
   // read the input pin:
   for (int z = 0; z < numCircuits; z++) {
     int buttonState = digitalRead(pin_input[z]);
-    DEBUG_PRINT(z);
-    DEBUG_PRINT(">");
-    DEBUG_PRINT(buttonState);
-    DEBUG_PRINT(" ");
+    //DEBUG_PRINT(z);
+    //DEBUG_PRINT(">");
+    //DEBUG_PRINT(buttonState);
+    //DEBUG_PRINT(" ");
 
     // count pulses in the loop
     if ( buttonState != lastpulse[z] ) {
@@ -162,7 +173,7 @@ void loop() {
 
   // check if the power should switch off
   for (int z = 0; z < numCircuits; z++) {
-    if (monitorMode[z]==1) {
+    if (monitorMode[z]==2) {
       DFLOW_PRINT("[");
       DFLOW_PRINT(z);
       DFLOW_PRINT("] ");
@@ -224,7 +235,7 @@ void loop() {
     // countdown the time for override mode
     if(override_mode) {
       override_time -= report_interval;
-      DFLOW_PRINT("    IN OVERRIDE MODE time left: ");
+      DFLOW_PRINT("    OVERRIDE MODE time left: ");
       DFLOW_PRINT(override_time);
       DFLOW_PRINTLN(" milliseconds ");
       if (override_time<0) {
@@ -242,7 +253,7 @@ void loop() {
         valuesreset[z]=1;
         DFLOW_PRINT("[");
         DFLOW_PRINT(z);
-        DFLOW_PRINTLN("] (values reset)");
+        DFLOW_PRINTLN("] (reset)");
       }
       else {
         if (valuesreset[z]) {
@@ -250,7 +261,7 @@ void loop() {
             valuesreset[z]=0;
             DFLOW_PRINT("[");
             DFLOW_PRINT(z);
-            DFLOW_PRINTLN("] (flow detected)");
+            DFLOW_PRINTLN("] (flow)");
           }
         }
       }
@@ -286,7 +297,7 @@ void handle_http() {
     while (client.connected()) {
       while (client.available()) { // Receive client data
 
-        if (debughttp) Serial.print(".");
+        DHTTP_PRINT(".");
         c = client.read(); //read char by char HTTP request
         readString +=c;
         //Serial.print(c); //output chars to serial port
@@ -298,13 +309,13 @@ void handle_http() {
           c = client.read();
           c = client.read();
           c = client.read();
-          if (c == 'X' || c == '1' )
+          if (c == 'X' || c == '0' )
             jsonresponse=1;
           else {
-            if ((c == 'Y' || c == '2') && numCircuits > 1)
+            if ((c == 'Y' || c == '1') && numCircuits > 1)
               jsonresponse=2;
             else {
-              if ((c == 'Z' || c =='3') && numCircuits > 2)
+              if ((c == 'Z' || c =='2') && numCircuits > 2)
                 jsonresponse=3;
               else
                 jsonresponse=0;
@@ -341,7 +352,7 @@ void handle_http() {
           for (int i=0; i<7; i++)
           {
             c = client.read();
-            DHTTP_PRINTc); // UNCOMMENT FOR DEBUG
+            DHTTP_PRINT(c); // UNCOMMENT FOR DEBUG
           }
 
           // Read the data package length
@@ -351,7 +362,7 @@ void handle_http() {
           while(c != '\n')
           {
             readString += c;
-            DHTTP_PRINTc);
+            DHTTP_PRINT(c);
             c = client.read();
           }
           // convert data read from String to int
@@ -372,27 +383,86 @@ void handle_http() {
           DHTTP_PRINT("data: ");
           DHTTP_PRINTLN(data);
 
+          DHTTP_PRINT("var: ");
+          DHTTP_PRINTLN(data[0]);
           readString ="";
-          int i = 0;
-          while(data[i] != '=')
+          lasteepromcode=1; 
+          
+          // User clicked on RESET
+          if (data[0]=='O') {
+            
+            int i = 0;
+            while(data[i] != '=')
+              i++;
             i++;
-          i++;
+             
+            DHTTP_PRINTLN(data + i);
+  
+            override_time = atoi(data + i);
+            if (override_time>150)
+              override_time = 150;
+  
+            override_time *= 60000;
+            DHTTP_PRINT("Override period: ");
+            DHTTP_PRINTLN(override_time);
+  
+            if(override_time>0)
+              override_mode=1;
+            else
+              override_mode=0;
+          }
+          else {
 
-          DHTTP_PRINTLN(data + i);
+            int i = 0;            
+            
+            for (int z = 0; z < numCircuits; z++) {
+              
+              while(data[i] != '=')
+                i++;          
+              i++; 
+              
+              DHTTP_PRINT("[");
+              DHTTP_PRINT(z);
+              DHTTP_PRINT("] ");
+              if( data[i] == '1') {
+                DHTTP_PRINTLN("OFF");                
+                monitorMode[z]=1;
+              }
+              if( data[i] == '2') {
+                DHTTP_PRINTLN("ON");
+                monitorMode[z]=2;
+              }
+            }
 
-          override_time = atoi(data + i);
-          if (override_time>150)
-            override_time = 150;
+            while(data[i] != '=')
+              i++;          
+            i++; 
 
-          override_time *= 60000;
-          DHTTP_PRINT("Override period: ");
-          DHTTP_PRINTLN(override_time);
+            long temp;
+            temp=atol(data + i);
+            DHTTP_PRINT("E=");
+            DHTTP_PRINTLN(temp);
+            if (temp==125221) {
+              DHTTP_PRINTLN("SAVE");     
+              lasteepromcode=3; 
+              
+              if ( EEPROM.read(0) != 125 )
+                EEPROM.write(0, 125);
 
-          if(override_time>0)
-            override_mode=1;
-          else
-            override_mode=0;
+              if ( EEPROM.read(1) != 221 )
+                EEPROM.write(1, 221);
+    
+              for (int z = 0; z < numCircuits; z++) {
+                if ( EEPROM.read(z+2) != monitorMode[z])
+                  EEPROM.write(z+2, monitorMode[z]);
+              } 
+            } else {
+              if(temp>0)
+                lasteepromcode=2; 
+            }
+          }           
         }
+        jsonresponse=0;
       }
 
       if (jsonresponse) {
@@ -445,36 +515,36 @@ void handle_http() {
         client.println("\">");
         client.println("<html>");
 
+        client.print("Power=");
         if (Is_Power_On)
-          client.print("The power is ON");
+          client.print("ON");
         else
-          client.print("The power is OFF");
+          client.print("OFF");
 
         for (int z = 0; z < numCircuits; z++) {
           client.print("<br>[");
           client.print(z);
           client.print("] ");
-          client.print("Flow per second: ");
+          client.print("Flow / second: ");
           client.print(Pulses_Per_Second[z]);
           if (valuesreset[z]>=1)
-            client.print(" (values reset)");
+            client.print(" (reset)");
 
           client.print("<br>[");
           client.print(z);
           client.print("] ");
-          client.print("Liters per minute: ");
+          client.print("Liters / minute: ");
           client.print(Liter_per_minute[z]);
           if (valuesreset[z]>=1)
-            client.print(" (values reset)");
+            client.print(" (reset)");
 
           client.print("<br>[");
           client.print(z);
-          client.print("] ");
-          if (monitorMode[z]==1)
-            client.print("Monitor Mode Enabled");
+          client.print("] Monitor=");
+          if (monitorMode[z]==2)
+            client.print("ON");
           else
-            client.print("Monitor Mode Disabled");
-
+            client.print("OFF");
         }
 
         if (override_time>0) {
@@ -485,30 +555,43 @@ void handle_http() {
           if (remainder < 10)
             client.print("0");
           client.print(remainder);
-          client.print("<br><br>*** WARNING - OVERRIDE MODE WILL NOT DISABLE POWER ***");
+          client.print("<br><br>*** WARNING - OVERRIDE MODE ***");
         }
         else
           client.print("<br>Monitoring mode");
         client.print("<br> ");
 
-        client.println("<br><form name=input method=post>Set override minutes : ");
+        client.println("<br><form name=input method=post>Set minutes: ");
         client.println("<input type=\"text\" value=\"");
         //     client.print(override_time);
-        client.print("\" name=\"override_time\" />");
+        client.print("\" name=\"O\" />");
         client.print(" (0=off,150=max) ");
         client.println("<input type=\"submit\" value=\"Reset\" />");
         client.println("</form> <br /> ");
 
-        client.println("<form name=input method=post>Configure Watch Method per loop:<br>");
+        client.println("<form name=input method=post>Monitoring:<br>");
         for (int z = 0; z < numCircuits; z++) {
           client.print("[");
           client.print(z);
           client.print("] <select name=\"");
           client.print(z);
-          client.print("\"><option value=\"1\">Monitor</option><option value=\"2\">Do not Monitor</option>");
+          client.print("\"><option value=\"1\"");
+          if (monitorMode[z]==1)
+            client.print(" selected");
+          client.print(">OFF</option><option value=\"2\"");
+          if (monitorMode[z]==2)
+            client.print(" selected");
+          client.print(">ON</option>");
           client.print("</select><br>");
         }
-        client.print("<input type=\"submit\" value=\"Save\"/></form>")
+        client.println("Eeprom code: <input type=\"text\" value=\"");
+        client.print("\" name=\"E\" />");
+        DHTTP_PRINTLN(lasteepromcode);
+        if ( lasteepromcode == 2 )
+            client.print(" Wrong");
+        if ( lasteepromcode == 3 )
+            client.print(" Saved");
+        client.print("<br><input type=\"submit\" value=\"Apply\"/></form><br>");
         client.println("</html>");
       }
       client.stop();
