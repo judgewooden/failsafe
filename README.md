@@ -3,11 +3,11 @@ failsafe
 
 ## Synopsis
 
-Failsafe is a project to determine if water is still flowing in a closed water loop for computer cooling. If the water is not flowing it will cut the power to the pump and computers. The computers are cooled with an external radiator and pump which is outside the house. Since these systems are far apart a Arduino monitors the flow to ensure that pumps will not run dry or there is no electric short when there is a water leak or an unknown incident.
+Failsafe is a project to determine if water is still flowing in a closed water loop for computer cooling. If the water is not flowing it will cut the power to the pump and computers. The computers are cooled with an external radiator and pump which is outside the house. Since these systems are far apart an Arduino monitors the flow to ensure that pumps will not run dry or there is no electric short when there is a water leak or an unknown incident.
 
 Inside the house each computer is split into its own water loop via a manifold. Using flowmeters for each loop an http server display the flow-per-second so that the manifold valves could be adjusted manually. The data is also made available as JSON via rest for an external monitoring software solution running on a seperate Raspberry Pi.
 
-## Code Example
+## Code
 
 As the project progressed more features got added:
 - Arduino_email: Monitors a single water loop and send an email when the circuit breakers is activated.
@@ -27,7 +27,7 @@ Hardware:
 - 3x water flow meter
 - 1x 220v switch
 
-## API Reference
+## Circuits
 
 - fritzing = logical circuit drawing
 - picture = circuit board (With a before picture)
