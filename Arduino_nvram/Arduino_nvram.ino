@@ -40,7 +40,7 @@
 const int numCircuits = 2;             // number of water sensors connected
 const int numReadings = 25;            // number of pulses to check for flow calculation
 
-int pin_input[] = {5, 7, 7};           // On what pins are the water seonsors connected
+int pin_input[] = {5, 7, 7};           // On what pins are the water sensors connected
 double pulses_per_liter[] = {169,169,169};
                                        // Number of pulses per liter water
 int pin_output = 6;                    // On what pin is the circuit breaker connected
@@ -74,7 +74,6 @@ byte mac[] = {
   0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; // physical mac address
 byte ip[] = {192, 168, 0, 8 };          // ip in lan
 byte gateway[] = {192, 168, 0, 1 };     // internet access via router
-byte smtp_server[] = {192, 168, 0, 5};  // my-host.com
 
 // HMTL processing variables
 EthernetServer server(80);              // server port
@@ -195,7 +194,7 @@ void loop() {
     }
   }
 
-  // report some interersting things
+  // report values
   if( (current_time / report_interval) > report_count) {
     DFLOW_PRINT("Time: ");
     DFLOW_PRINTLN(current_time);
@@ -269,6 +268,7 @@ void loop() {
 
     report_count++;
   }
+
   handle_http();
 }
 
