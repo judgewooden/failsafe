@@ -30,7 +30,7 @@ Hardware:
 ## Circuits
 
 - fritzing = logical circuit drawing
-- picture = circuit board (With a before picture)
+- picture = circuit board (With before pictures)
 
 ## Tests
 
