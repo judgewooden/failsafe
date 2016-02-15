@@ -36,6 +36,16 @@ Hardware:
 
 There was several leaks over the years and the failsafe works.
 
+## Example
+
+Below is a sample screen of what you can control via the web server.
+
+- In this example only two loops are active and only loop-0 is being monitored.
+- Set minutes. Allows you to temporary disable monitoring. This is needed when you service the outside loop (radiator) or when you start the system. It will countdown and eventually reset to monitoring mode.
+- Change ON/OFF per loop. This allows you to enable/disable monitoring per loop. Useful if you service a computer. The eeprom-code option allow you to save this setting into eeprom.
+
+[sample screen](Pictures/sample_screen.png)
+
 ## Contributors
 
 https://github.com/simketejong
