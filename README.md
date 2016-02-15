@@ -44,7 +44,7 @@ Below is a sample screen of what you can control via the web server.
 - Set minutes. Allows you to temporary disable monitoring. This is needed when you service the outside loop (radiator) or when you start the system. It will countdown and eventually reset to monitoring mode.
 - Change ON/OFF per loop. This allows you to enable/disable monitoring per loop. Useful if you service a computer. The eeprom-code option allow you to save this setting into eeprom.
 
-[sample screen](Pictures/sample_screen.png)
+![sample screen](Pictures/sample_screen.png)
 
 ## Contributors
 
