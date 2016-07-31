@@ -176,7 +176,7 @@ void loop() {
       DFLOW_PRINT("[");
       DFLOW_PRINT(z);
       DFLOW_PRINT("] ");
-      if(current_time > (timeout_millisecs + last_pulse_time[0]) ) {
+      if(current_time > (timeout_millisecs + last_pulse_time[z]) ) {
         DFLOW_PRINT("ALERT. No flow for ");
         DFLOW_PRINT(timeout_millisecs);
         DFLOW_PRINT(" milliseconds. ");
