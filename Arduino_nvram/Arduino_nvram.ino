@@ -206,7 +206,7 @@ void loop() {
       int looper;
 
       if ( index[z] != 0)
-        total +=  readings[0][z] - readings[numReadings - 1][z];
+        total +=  readings[looper][z] - readings[numReadings - 1][z];
 
       for ( looper = 1; looper < index[z]; looper++)
         total += readings[looper][z] - readings[looper - 1][z];
